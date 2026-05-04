@@ -28,6 +28,7 @@ null            : {token, {null, TokenLine}}.
 {WS}            : skip_token.
 {NL}            : skip_token.
 //[^\n]*        : skip_token.
+///[^\n]*        : skip_token.
 /\*([^*]|\*[^/])*\*/ : skip_token.
 
 \{    : {token, {'{',  TokenLine}}.

@@ -683,7 +683,7 @@ normalize_scalar_type(Type) -> Type.
 %% Extract default value from type, but not from type constructors
 extract_default({Type, D}) when
     is_atom(Type),
-    (is_number(D) orelse is_boolean(D) orelse is_atom(D)),
+    (is_number(D) orelse is_boolean(D) orelse is_atom(D) orelse is_binary(D)),
     Type /= vector,
     Type /= enum,
     Type /= struct,

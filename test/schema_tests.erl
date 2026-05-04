@@ -141,3 +141,77 @@ complex_schema_file_test() ->
     ?assertEqual(<<"gmst">>, maps:get(file_identifier, Opts)),
     ?assertEqual('GameStateRoot', maps:get(root_type, Opts)),
     ?assertEqual('DogeFB.GameState', maps:get(namespace, Opts)).
+
+%% =============================================================================
+%% Parser Compatibility Tests (flatbuferl-compat.sh elimination)
+%% =============================================================================
+
+triple_slash_comment_test() ->
+    %% /// doc comments should be accepted (flatc-compatible)
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema(
+        "/// A monster table\n"
+        "/// with doc comments\n"
+        "table Monster { name: string; hp: int; }\n"
+    ),
+    ?assertMatch(#{'Monster' := #table_def{}}, Defs).
+
+triple_slash_inline_comment_test() ->
+    %% /// comments mixed with regular fields
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema(
+        "table Monster {\n"
+        "  /// The monster's display name\n"
+        "  name: string;\n"
+        "  /// Hit points\n"
+        "  hp: int;\n"
+        "}\n"
+    ),
+    #table_def{all_fields = AllFields} = maps:get('Monster', Defs),
+    ?assertEqual(2, length(AllFields)).
+
+trailing_comma_enum_test() ->
+    %% Trailing comma in enum body should be accepted (flatc-compatible)
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema("enum Color : byte { Red, Green, Blue, }"),
+    #enum_def{values = Values} = maps:get('Color', Defs),
+    ?assertEqual(['Red', 'Green', 'Blue'], Values).
+
+trailing_comma_union_test() ->
+    %% Trailing comma in union body should be accepted
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema("union Animal { Dog, Cat, }"),
+    #union_def{members = Members} = maps:get('Animal', Defs),
+    ?assertEqual(['Dog', 'Cat'], Members).
+
+trailing_comma_with_comment_test() ->
+    %% Trailing comma with inline comment (the exact pattern from protocol.fbs)
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema(
+        "enum Color : byte {\n"
+        "  Red,\n"
+        "  Green,  // the best color\n"
+        "  Blue,\n"
+        "}\n"
+    ),
+    #enum_def{values = Values} = maps:get('Color', Defs),
+    ?assertEqual(['Red', 'Green', 'Blue'], Values).
+
+string_default_test() ->
+    %% String default values should be accepted (flatc-compatible)
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema(
+        "table Config { name: string = \"default\"; }\n"
+    ),
+    #table_def{all_fields = [#field_def{name = name, type = string, default = <<"default">>, id = 0}]} = maps:get(
+        'Config', Defs
+    ).
+
+string_default_with_enum_test() ->
+    %% String and enum defaults together
+    {ok, {Defs, _Opts}} = flatbuferl:parse_schema(
+        "enum Color : byte { Red, Green, Blue }\n"
+        "table Pixel { color: Color = Blue; label: string = \"pixel\"; }\n"
+    ),
+    #table_def{all_fields = AllFields} = maps:get('Pixel', Defs),
+    ?assertEqual(2, length(AllFields)),
+    %% Find the string field and check its default
+    StringFields = [F || F <- AllFields, F#field_def.name =:= label],
+    ?assertMatch(
+        [#field_def{type = string, default = <<"pixel">>}],
+        StringFields
+    ).

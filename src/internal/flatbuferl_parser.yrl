@@ -49,10 +49,12 @@ value -> float    : get_value('$1').
 value -> bool     : get_value('$1').
 value -> null     : undefined.
 value -> string   : get_value_bin('$1').
+value -> quote string quote : get_value_bin('$2').
 
 % enums + unions
 atoms -> atom             : [ '$1' ].
 atoms -> atom ',' atoms   : [ '$1' | '$3'].
+atoms -> atom ','         : [ '$1' ].
 
 atom -> string : get_value_atom('$1').
 atom -> string '=' int : {get_value_atom('$1'), get_value('$3')}.  %% enum with explicit value
